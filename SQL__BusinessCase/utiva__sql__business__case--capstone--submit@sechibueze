@@ -1,0 +1,232 @@
+-- Name: SAMUEL CHIBUEZE
+-- URL: https://sechibueze.github.io
+-- LinkdedIn: https://linkedin.com/in/sechibueze
+
+-- Create the database
+-- Utiva Breweries Company
+CREATE DATABASE  UtivaBC;
+
+-- Create a schema to keep everything nice, simple & organized :)
+CREATE SCHEMA ubc;
+
+-- Create a table to hold your dataset
+-- ! Ensure the table attributes/column names match the headers as contained in your 
+-- data source, in my case a csv file
+
+-- Create table
+CREATE TABLE ubc.wine_sales(
+	sales_id INT NOT NULL PRIMARY KEY,
+	sales_rep VARCHAR(255) NOT NULL,
+	email VARCHAR(255) NOT NULL, 
+	brand VARCHAR(255) NOT NULL,
+	plant_cost FLOAT NOT NULL CHECK(plant_cost > 0),
+	unit_price FLOAT NOT NULL CHECK(unit_price > 0),
+	quantity INT NOT NULL CHECK(quantity > 0),
+	cost FLOAT NOT NULL CHECK(cost > 0),
+	profit FLOAT NOT NULL CHECK(profit > 0),
+	country VARCHAR(255) NOT NULL,
+	region VARCHAR(255) NOT NULL,
+	month VARCHAR(20) NOT NULL,
+	year VARCHAR(4) NOT NULL
+);
+
+-- Go ahead and import your dataset using the Query editor
+-- GUI
+
+-- -- -- Congrats! Everything has worked fine :)
+-- -- -- Now, let's get to the niceties :)
+
+-- Preview data
+SELECT * FROM ubc.wine_sales;
+
+------ CASE ----
+-- From the international breweries data recorded for a duration of three years, you are
+-- directed to do the following analyses to aid better decision making in order to maximize
+-- profit and reduce loss to the lowest minimum.
+
+----Session A
+----PROFIT ANALYSIS
+
+-- 1. Within the space of the last three years, what was the profit worth of the breweries,
+inclusive of the anglophone and the francophone territories?
+-- select distinct year from ubc.wine_sales --> 2017, 2018, 2019
+
+SELECT SUM(profit) AS company_profit FROM ubc.wine_sales; -- 105,587,420
+
+--2. Compare the total profit between these two territories in order for the territory manager,
+-- Mr. Stone made a strategic decision that will aid profit maximization in 2020.
+-- You want to know all countries involved in the data set
+SELECT DISTINCT country FROM ubc.wine_sales; 
+-- -- With a little Googling to remind myself
+-- -- FR => 'Benin', 'Senegal', 'Togo'
+-- -- AG => 'Nigeria', 'Ghana'
+
+SELECT SUM(profit) AS ag_profit FROM ubc.wine_sales WHERE country IN ('Nigeria', 'Ghana'); -- 42389260
+SELECT SUM(profit) AS fr_profit FROM ubc.wine_sales WHERE country IN ('Benin', 'Senegal', 'Togo'); -- 63198160
+-- FR region leads by the number of countries as the diff is approx the profit from one country ie 2xxk range
+-- The next query confirms it. 
+SELECT country, SUM(profit) AS country_profit FROM ubc.wine_sales GROUP BY country; 
+-- Mr Stone needs to open up more companies in the AG region in 2020
+
+--3. Country that generated the highest profit in 2019
+SELECT country, SUM(profit) as country_profit 
+	FROM ubc.wine_sales 
+	WHERE year = '2019'  
+	GROUP BY country 
+	ORDER BY country_profit DESC
+	LIMIT 1; -- Ghana with a profit of 7144070
+
+--4. Help him find the year with the highest profit.
+SELECT year, SUM(profit) AS ubc_annual_profit 
+	FROM ubc.wine_sales 
+	GROUP BY year
+	ORDER BY ubc_annual_profit DESC
+	--LIMIT 1 -- year 2017 has the highest profit ==> 38503320
+	-- UBC has actually been experincing reduction in annual profit
+	
+--5. Which month in the three years was the least profit generated?
+-- -- -- SELECT  SUM(profit) as profit_by_month, month 
+-- -- -- 	FROM ubc.wine_sales 
+-- -- -- 	GROUP BY month 
+-- -- -- 	ORDER BY profit_by_month ASC; -- => April had the least with 8573830
+-- In December, 2017, Nigeria recorded the lowest monthly profit for UBC @ 35000
+SELECT country, month, year, profit as monthly_profit 
+	FROM ubc.wine_sales 
+	ORDER BY monthly_profit ASC;
+
+
+--6. What was the minimum profit in the month of December 2018?
+SELECT country, profit as xmas_profit_2018 , month, year FROM ubc.wine_sales 
+	WHERE month = 'December' AND year = '2018'
+	ORDER BY xmas_profit_2018 ASC
+	LIMIT 1; -- => 38150, made in Senegal
+	
+--7. Compare the profit in percentage for each of the month in 2019
+-- Method 1 => Step by step
+-- -- 1. Get the total for the year
+SELECT SUM(profit) as total_2019_profit FROM ubc.wine_sales WHERE year = '2019' -- => 30020250
+-- -- 2. Manually insert the total 
+SELECT  month,  SUM(profit) AS monthly_profit_2019,  ROUND(CAST(SUM(profit)/30020250 * 100 AS NUMERIC), 2)  monthly_profit_2019_percent
+	FROM ubc.wine_sales
+	WHERE year = '2019'
+	GROUP BY month
+	
+-- -- OR -- use sub-query
+SELECT  
+		month,  
+		SUM(profit) AS monthly_profit_2019, 
+		SUM(profit)/(SELECT SUM(profit) FROM ubc.wine_sales WHERE year = '2019') * 100 as monthly_profit_2019_percent
+	FROM ubc.wine_sales
+	WHERE year = '2019'
+	GROUP BY month
+	
+	
+--8. Which particular brand generated the highest profit in Senegal?
+SELECT brand, SUM(profit) brand_profit__senegal
+	FROM ubc.wine_sales 
+	WHERE country = 'Senegal'
+	GROUP BY brand
+	ORDER BY brand_profit__senegal DESC
+	--LIMIT 1; -- => Castle lite with a profit of 7012980
+	
+----Session B
+----BRAND ANALYSIS
+--1. Within the last two years, the brand manager wants to know the top three brands
+--consumed in the francophone countries
+SELECT brand, COUNT(brand) AS brand_count
+	FROM ubc.wine_sales
+	WHERE country IN ('Benin', 'Senegal', 'Togo') and year IN ('2018', '2019')
+	GROUP BY brand
+	ORDER BY brand_count DESC
+	LIMIT 3; -- => Trophy, Eagle Lager and Castle lite
+	
+	
+--2. Find out the top two choice of consumer brands in Ghana
+SELECT brand, COUNT(brand) as ghana_decides 
+	FROM ubc.wine_sales 
+	WHERE country = 'Ghana'
+	GROUP BY brand
+-- 	All wines are equally preferred by Ghanaians
+
+--3. Find out the details of beers consumed in the past three years in the most oil reached
+--country in West Africa.
+SELECT 
+		brand, 
+		COUNT(brand) as num_consumed
+	FROM ubc.wine_sales 
+	WHERE country = 'Nigeria'
+	GROUP BY brand
+	
+--4. Favorites malt brand in Anglophone region between 2018 and 2019
+SELECT 
+	brand, COUNT(brand) AS brand_freq
+	FROM ubc.wine_sales
+	WHERE brand LIKE '%malt' and year IN ('2018', '2019') and country IN ('Nigeria', 'Ghana')
+	GROUP BY brand
+	ORDER BY brand_freq DESC; --=> Grand malt
+	
+--5. Which brands sold the highest in 2019 in Nigeria?
+SELECT 
+	brand, COUNT(brand) AS most_sold
+	FROM ubc.wine_sales
+	WHERE year='2019' and country ='Nigeria'
+	GROUP BY brand
+	ORDER BY most_sold DESC; --=> Hero
+	
+--6. Favorites brand in South_South region in Nigeria
+SELECT 
+	brand, COUNT(brand) AS most_sold
+	FROM ubc.wine_sales
+	WHERE region='southsouth' and country ='Nigeria'
+	GROUP BY brand
+	ORDER BY most_sold DESC; --=> Beta malt
+	
+--7. Bear consumption in Nigeria
+
+--8. Level of consumption of Budweiser in the regions in Nigeria
+SELECT 
+	region, COUNT(brand) AS most_consumed
+	FROM ubc.wine_sales
+	WHERE brand='budweiser' and country ='Nigeria'
+	GROUP BY region
+	ORDER BY most_consumed DESC; --=> Equally consumed ie 5
+	
+--9. Level of consumption of Budweiser in the regions in Nigeria in 2019 (Decision on Promo)
+SELECT 
+	region, COUNT(brand) AS most_consumed
+	FROM ubc.wine_sales
+	WHERE brand='budweiser' AND country ='Nigeria' AND year = '2019'
+	GROUP BY region
+	ORDER BY most_consumed DESC; 
+-- 	--=> Most consumed in South East, do promo in all regions as consumption is poor
+	
+
+----Session C
+----COUNTRIES ANALYSIS
+--1. Country with the highest consumption of beer.
+SELECT  
+	country,  COUNT(country) as num_countries 
+	FROM ubc.wine_sales 
+	WHERE brand NOT LIKE '%malt' -- only beer
+	GROUP BY country 
+	ORDER BY num_countries DESC -- => 4 countries have a tie of 150 which is the maximum
+	LIMIT 1;
+	
+--2. Highest sales personnel of Budweiser in Senegal
+SELECT sales_rep, COUNT(sales_rep) AS top_seller__senegal
+	FROM ubc.wine_sales
+	WHERE country = 'Senegal' and brand = 'budweiser'
+	GROUP BY sales_rep
+	ORDER BY top_seller__senegal DESC; -- => Jones
+	
+--3. Country with the highest profit of the fourth quarter in 2019
+SELECT country, SUM( profit) AS country_profit
+	FROM ubc.wine_sales
+	WHERE month IN ('October', 'November', 'December') and year = '2019'
+	GROUP BY country
+	ORDER BY country_profit DESC
+	LIMIT 1; -- => Ghana
+
+
+
+
